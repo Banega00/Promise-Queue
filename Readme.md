@@ -25,3 +25,7 @@ Config argument is javascript object which consists of three optional properties
 - maxNumberOfConcurrentRequests - (self explained)
 - onSuccess - callback function that is being called once for every async function after its successful execution.
 - onFailure - callback function that is being called once for every async function after error occurs.
+
+## Notes
+- Check index.ts file as an example of PromiseQueue usage
+- promiseQueue.start() and promiseQueue.stop() are methods for starting and stopping tasks execution
