@@ -4,11 +4,14 @@ export class PromiseQueue{
     functions: Function[];
     i = 0;
     active = false;
+    onSuccess: Function | undefined;
+    onFailure: Function | undefined;
     constructor(
         functions: Function[],
         config: {  
             maxNumberOfConcurrentRequests?: number,
-
+            onSuccess?: (response:any) => void,
+            onFailure?: (error:any) => void
         }){
         this.queue = []
         if(config.maxNumberOfConcurrentRequests && config.maxNumberOfConcurrentRequests > 0){
@@ -16,6 +19,9 @@ export class PromiseQueue{
         }else{
             this.maxNumberOfConcurrentRequests = 10;
         }
+
+        this.onSuccess = config.onSuccess;
+        this.onFailure = config.onFailure;
 
         this.functions = functions;
     }
@@ -35,14 +41,22 @@ export class PromiseQueue{
         if(!this.active) return;
 
         await fn()
-        .then((res:any) => {
+        .then((response:any) => {
+            if(this.onSuccess){
+                this.onSuccess(response);
+            }
+
             this.i++;
             if(this.i >= this.functions.length && this.active) return;
 
             this.asyncFunctionWrapper(this.functions[this.i], this.i)
         })
         .catch((err:any) => {
-            this.i++
+            if(this.onFailure){
+                this.onFailure(err);
+            }
+
+            this.i++;
 
             if(this.i >= this.functions.length && this.active) return;
 
@@ -65,16 +79,20 @@ const sendRequest = async (x:any,y:any,z:any) => {
     })
 }
 
-const promiseQueue = new PromiseQueue(requests.map(reqData => sendRequest.bind(null,reqData.x, reqData.y, reqData.z)), {
-    maxNumberOfConcurrentRequests: 10
+const promiseQueue = new PromiseQueue(
+    requests.map(reqData => sendRequest.bind(null,reqData.x, reqData.y, reqData.z)), 
+    {
+    maxNumberOfConcurrentRequests: 10,
+    onSuccess: (response:{x:number,y:number,z:number}) => {
+        console.log('SUCCESS')
+        console.log(response)
+    },
+    onFailure: (error:any) => {
+        console.log('ERROR')
+        console.log(error)
+    }
 })
 
 promiseQueue.start();
 
-new Promise((resolve, reject) => {
 
-    setTimeout(() => {
-        promiseQueue.stop();
-        resolve(0);
-    }, 3)  
-})
