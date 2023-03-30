@@ -3,36 +3,48 @@ export class PromiseQueue{
     maxNumberOfConcurrentRequests = 10;
     functions: Function[];
     i = 0;
-    constructor(functions: Function[], maxNumberOfConcurrentRequests?: number){
+    active = false;
+    constructor(
+        functions: Function[],
+        config: {  
+            maxNumberOfConcurrentRequests?: number,
+
+        }){
         this.queue = []
-        if(maxNumberOfConcurrentRequests && maxNumberOfConcurrentRequests > 0){
-            this.maxNumberOfConcurrentRequests = maxNumberOfConcurrentRequests
+        if(config.maxNumberOfConcurrentRequests && config.maxNumberOfConcurrentRequests > 0){
+            this.maxNumberOfConcurrentRequests = config.maxNumberOfConcurrentRequests
         }else{
             this.maxNumberOfConcurrentRequests = 10;
-        }
-
-        for(this.i = 0; this.i< this.maxNumberOfConcurrentRequests && this.i<functions.length; this.i++){
-            this.queue.push(this.asyncFunctionWrapper(functions[this.i], this.i))
         }
 
         this.functions = functions;
     }
 
+    public start(){
+        this.active = true;
+        for(this.i = 0; this.i< this.maxNumberOfConcurrentRequests && this.i<this.functions.length; this.i++){
+            this.queue.push(this.asyncFunctionWrapper(this.functions[this.i], this.i))
+        }
+    }
+
+    public stop(){
+        this.active=false;
+    }
+
     private async asyncFunctionWrapper(fn: Function, i:number){
+        if(!this.active) return;
+
         await fn()
         .then((res:any) => {
-            console.log(`Request ${i} completed`)
             this.i++;
-            if(this.i >= this.functions.length) return;
+            if(this.i >= this.functions.length && this.active) return;
 
             this.asyncFunctionWrapper(this.functions[this.i], this.i)
         })
         .catch((err:any) => {
-            console.log(`Request ${i} failed`)
-            console.log(err)
             this.i++
 
-            if(this.i >= this.functions.length) return;
+            if(this.i >= this.functions.length && this.active) return;
 
             this.asyncFunctionWrapper(this.functions[this.i], this.i)
         })
@@ -53,4 +65,16 @@ const sendRequest = async (x:any,y:any,z:any) => {
     })
 }
 
-const promiseQueue = new PromiseQueue(requests.map(reqData => sendRequest.bind(null,reqData.x, reqData.y, reqData.z)), 10)
+const promiseQueue = new PromiseQueue(requests.map(reqData => sendRequest.bind(null,reqData.x, reqData.y, reqData.z)), {
+    maxNumberOfConcurrentRequests: 10
+})
+
+promiseQueue.start();
+
+new Promise((resolve, reject) => {
+
+    setTimeout(() => {
+        promiseQueue.stop();
+        resolve(0);
+    }, 3)  
+})
