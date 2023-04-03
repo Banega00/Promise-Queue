@@ -6,6 +6,7 @@ export class PromiseQueue{
     active = false;
     onSuccess: Function | undefined;
     onFailure: Function | undefined;
+    done: number;
     constructor(
         functions: Function[],
         config: {  
@@ -24,13 +25,26 @@ export class PromiseQueue{
         this.onFailure = config.onFailure;
 
         this.functions = functions;
+
+        this.done = 0;
     }
 
-    public start(){
+    public async start(){
         this.active = true;
-        for(this.i = 0; this.i< this.maxNumberOfConcurrentRequests && this.i<this.functions.length; this.i++){
+        for(this.i = 0; this.i< this.maxNumberOfConcurrentRequests-1 && this.i<this.functions.length; this.i++){
             this.queue.push(this.asyncFunctionWrapper(this.functions[this.i], this.i))
         }
+
+        this.i--;
+
+        return new Promise((resolve) => {
+            const intervalId = setInterval(() => {
+                if (this.done >= this.functions.length) {
+                    clearInterval(intervalId);
+                    resolve(null);
+                }
+            }, 100); // Check every 100ms
+        });
     }
 
     public stop(){
@@ -42,25 +56,33 @@ export class PromiseQueue{
 
         await fn()
         .then((response:any) => {
+            this.done++;
+
             if(this.onSuccess){
                 this.onSuccess(response);
             }
 
             this.i++;
-            if(this.i >= this.functions.length && this.active) return;
+            if(this.i >= this.functions.length && this.active){
+               return this.stop();
+            }
 
-            this.asyncFunctionWrapper(this.functions[this.i], this.i)
+            this.queue.push(this.asyncFunctionWrapper(this.functions[this.i], this.i))
         })
         .catch((err:any) => {
+            this.done++;
+
             if(this.onFailure){
                 this.onFailure(err);
             }
 
             this.i++;
 
-            if(this.i >= this.functions.length && this.active) return;
+            if(this.i >= this.functions.length && this.active){
+                return this.stop();
+            }
 
-            this.asyncFunctionWrapper(this.functions[this.i], this.i)
+            this.queue.push(this.asyncFunctionWrapper(this.functions[this.i], this.i));
         })
     }
 }

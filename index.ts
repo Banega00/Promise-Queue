@@ -2,26 +2,32 @@ import { PromiseQueue } from "./promise-queue";
 
 //This file is an example of usage of the PromiseQueue class
 
-const requests = new Array(50).fill({x:1,y:2,z:3});//initialize array of 50 objects
+const requests = [];
+
+for (let i = 1; i <= 50; i++) {
+    requests.push(i);
+}
+
+// const requests = new Array(50).fill({x:1,y:2,z:3});//initialize array of 50 objects
 
 
-//Define a function that simulates a request which needs between 3 and 8 seconds to complete
-const sendRequest = async (x:any,y:any,z:any) => {
+//Define a function that simulates a request which needs between 1 and 8 seconds to complete
+const sendRequest = async (data:any) => {
     return new Promise((resolve, reject) => {
-        //random number between 3 and 8
-        const rand = Math.floor(Math.random() * (8 - 3 + 1) + 3)*1000
+        //random number between 1 and 8
+        const rand = Math.floor(Math.random() * (8 - 2 + 1) + 1)*1000
 
         setTimeout(() => {
-            resolve({x,y,z})
+            resolve(data)
         }, rand)  
     })
 }
 
 //Initialize the PromiseQueue class
 const promiseQueue = new PromiseQueue(
-    requests.map(reqData => sendRequest.bind(null,reqData.x, reqData.y, reqData.z)), 
+    requests.map(reqData => sendRequest.bind(null, {data: reqData})), 
     {
-    maxNumberOfConcurrentRequests: 10,
+    maxNumberOfConcurrentRequests: 5,
     onSuccess: (response:{x:number,y:number,z:number}) => {
         console.log('SUCCESS')
         console.log(response)
@@ -30,7 +36,16 @@ const promiseQueue = new PromiseQueue(
         console.log('ERROR')
         console.log(error)
     }
-})
+});
 
 //Start the queue
-promiseQueue.start();
+
+//iife
+(async () => {
+    console.log("POCEO")
+
+    await promiseQueue.start();
+    
+    console.log("ZAVRSIO")
+})()
+
